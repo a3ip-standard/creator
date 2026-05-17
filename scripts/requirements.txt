@@ -1,0 +1,11 @@
+# A3IP Creator — script dependencies
+#
+# Install with:
+#   pip install -r requirements.txt
+#
+# PyYAML is used by validate.py for full manifest parsing.
+# Without it, validate.py falls back to a minimal regex-based parser
+# that covers all required checks but may miss edge cases in
+# non-standard YAML formatting.
+
+PyYAML>=6.0
