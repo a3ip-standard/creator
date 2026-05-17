@@ -70,6 +70,58 @@ New version entries go at the **top** of this file (newest first).
 
 ---
 
+---
+
+## 1.14.1
+
+*Released: 2026-05-17*
+
+### Summary
+
+Housekeeping patch. Three changes, none of which alter scaffolded output or
+runtime behavior:
+
+1. **Apache-2.0 LICENSE added.** The creator-repo was created without a
+   LICENSE file when it was split out of the workspace; this patch supplies
+   the same Apache-2.0 license already used by `a3ip-standard/spec` and
+   `a3ip-standard/cli`. `manifest.yaml` `license:` field updated from `MIT`
+   to `Apache-2.0` to match.
+
+2. **Cowork adapter Step C2 rewritten in Tier-3 language.** Previously the
+   adapter enumerated the runtime payload as "SKILL.md + scripts/" — narrow
+   and silently wrong (the SKILL's Phase 0 falls back to reading
+   `docs/A3IP-SPEC-v{min_a3ip_spec}.md` when web fetch is blocked, so `docs/`
+   must also ship). The new wording describes the *purpose* of the runtime
+   payload — "everything the skill needs at runtime, derived from reading the
+   skill's instructions" — and gives the current concrete answer for
+   a3ip-creator (SKILL.md + scripts/ + docs/) as a worked example rather than
+   a contract. This aligns the adapter with the three-tier framing in
+   CONCEPT.md (mechanical / outcomes / semantics).
+
+3. **CLI dependency minimum bumped from `>=1.3.1` to `>=1.3.2`.** v1.3.2
+   reads the package name from `manifest.yaml` instead of the parent
+   directory name. The Creator's own source lives at `creator-repo/` while
+   the package name is `a3ip-creator`, so any installer using an older CLI
+   to bundle Creator from source would produce a bundle with the wrong name
+   in its frontmatter. Bumping the minimum guarantees correct bundle naming.
+
+### Upgrade steps
+
+No action required -- non-breaking update.
+
+### Breaking changes
+
+None.
+
+### Files changed
+
+- `manifest.yaml` — bumped version, license, a3ip dep minimum
+- `adapters/runtime/cowork/install-skill.md` — Step C2 rewritten with
+  Tier-3 framing; docs/ added to the worked-example runtime payload;
+  troubleshooting entry added for the offline-spec fallback
+- `LICENSE` — added (Apache-2.0)
+- `CHANGELOG.md` — this entry
+
 ## 1.14.0
 
 *Released: 2026-05-17*
