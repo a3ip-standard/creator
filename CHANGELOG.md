@@ -68,6 +68,54 @@ New version entries go at the **top** of this file (newest first).
 
 ---
 
+---
+
+## 1.14.0
+
+*Released: 2026-05-17*
+
+### Summary
+
+Adopts A3IP spec v1.8, adds Codex runtime adapter, and bumps the a3ip CLI dependency to v1.3.1. Three concrete changes: (1) `min_a3ip_spec` bumped from `"1.7"` to `"1.8"` and a local copy of `docs/A3IP-SPEC-v1.8.md` is shipped so Phase 0 finds it without web access; (2) new `adapters/runtime/codex/install-skill.md` documents the Codex-specific install flow (no .skill UI; file-copy into `~/.codex/skills/<name>/`; `install_method: "generic-copy"`; PowerShell-direct on Windows without Cowork's bash sandbox); (3) `dependencies.tools[a3ip].version` bumped from `">=1.2.1"` to `">=1.3.1"` to require the Unicode-safe console output (Windows cp1252 no longer crashes) and the declared spec 1.8 compatibility. v1.8 spec is mostly documentation/schema clarifications; Creator behavior is unchanged except for the Codex adapter and the spec-doc shipped in docs/.
+
+### Upgrade steps
+
+**Step 1 — Upgrade the a3ip CLI to 1.3.1+:**
+The new Creator manifest declares `a3ip >=1.3.1`. The install AI auto-runs
+`pip install --upgrade --user a3ip` during INSTALL.md Step 3 and SKILL.md
+Phase 5 Step 0; no manual operator action needed.
+
+**Step 2 — Replace these files in the installed skill:**
+- `manifest.yaml` (bumped `min_a3ip_spec`, bumped a3ip dep)
+- `docs/A3IP-SPEC-v1.8.md` (newly shipped)
+- `adapters/runtime/codex/install-skill.md` (newly shipped — only needed if
+  Codex is in your install targets; harmless on other runtimes)
+
+For Cowork installs, the `.skill` rebuild (Steps C1-C4 of
+`adapters/runtime/cowork/install-skill.md`) covers all three automatically.
+For Codex installs (or any other runtime), copy the files into your
+`~/.codex/skills/a3ip-creator/` (or equivalent) directory.
+
+**Step 3 — Update `installed.json`:**
+- `version: "1.14.0"`
+- `a3ip_spec: "1.8"`
+- (`upgraded_from`: "1.13.1")
+
+### Breaking changes
+
+None. All changes are additive (new adapter file, new spec doc) or
+backward-compatible dependency bumps (CLI minimum moved up but old packages
+that still run with Creator continue to function). v1.7-targeted packages
+remain valid as v1.8 per the v1.8 spec's backward-compatibility guarantee.
+
+### Files changed
+
+- `manifest.yaml` — bumped
+- `CHANGELOG.md` — replaced
+TODO: List every other file that changed.
+Format: `path/to/file.ext` — replaced | added | deleted
+*(Run sync.py before new_version.py to auto-populate this section.)*
+
 ## 1.13.1
 
 *Released: 2026-05-16*

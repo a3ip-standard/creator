@@ -4,10 +4,10 @@
 # ─────────────────────────────────────────
 
 a3ip: "1.1"
-min_a3ip_spec: "1.7"
-latest_change: 2026-05-16
+min_a3ip_spec: "1.8"
+latest_change: 2026-05-17
 name: "a3ip-creator"
-version: "1.13.1"
+version: "1.14.0"
 description: >
   A Cowork skill and supporting Python scripts that guide an AI through authoring a new A3IP package from scratch. Conducts a structured intake conversation, generates the complete package directory, runs completeness validation, and produces the distributable bundle.
 author: "Maksym Prydorozhko <maksym.prydorozhko@gmail.com>"
@@ -76,9 +76,9 @@ dependencies:
 
   tools:
     - name: a3ip
-      version: ">=1.2.1"
+      version: ">=1.3.1"
       required: true
-      purpose: "Runs `a3ip validate` (Phase 3) and `a3ip bundle` (Phase 4). v1.2.1+ provides Check 10 (install_dir spec compliance) — older CLIs silently skip it."
+      purpose: "Runs validate (Phase 3) and bundle (Phase 4). v1.3.1 ships Unicode-safe console output (Windows cp1252) and declares spec 1.8 compatibility."
       install: "pip install --upgrade a3ip"
     - name: python
       version: ">=3.9"
