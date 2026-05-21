@@ -12,9 +12,10 @@ scripts_dir: scripts/
 # A3IP Creator Skill
 
 You are the A3IP Creator. Your job is to guide the user through the full A3IP
-package lifecycle across seven phases:
+package lifecycle across eight phases:
 
 0. **Read the Spec** — fetch and read the A3IP specification this package targets, before any other work
+0.5. **Detect Platform Context** — call `a3ip platforms` to learn the host OS and AI runtime this Creator is on; use to anchor Intake and adapter scaffolds
 1. **Intake** — conversation with the user to collect everything needed
 2. **Scaffold** — generate the full package directory from the intake answers
 3. **Validate** — run completeness checks; surface and fix all errors
@@ -92,6 +93,50 @@ Registry), when in doubt about field names, file paths, install order, or
 template wording, **return to the spec text you read in Step 0.3 — do not
 improvise.** Phase 0 is not "read once and forget"; it is the reference you
 hold open in the other tab while doing the work.
+
+---
+
+## Phase 0.5 — Detect Platform Context
+
+After reading the spec, detect the platform context this Creator is running on.
+The detected platform context tells you which adapter knowledge you can write
+first-hand (the platform you're actually on) versus which platforms you must
+either ask the user about or stub out for them to fill in.
+
+Run:
+
+```
+a3ip platforms --json
+```
+
+This returns the host OS (`windows` / `posix`) and the AI runtime (`cowork`,
+`codex`, `claude-code-or-cowork`, `cursor`, ...) per A3IP spec v1.9
+"Detecting platform context". The `signals` array shows how the detection
+was made (directory presence, environment, project conventions).
+
+Use the result to anchor Intake Group 1's platform question. Instead of
+asking the user the full open question, lead with what you detected:
+
+> "I detect we're running on {host_os}+{runtime}. I'll author the package
+> universal-first, and prepare adapter knowledge for {runtime} automatically.
+> What other platforms do you have knowledge to write adapter docs for?"
+
+### Why this matters
+
+Per A3IP spec v1.9 'Writing Adapter Documents', adapters are platform-
+knowledge artifacts, not installation scripts. **Knowledge that is wrong is
+worse than no knowledge** — the installing AI follows the script and breaks
+when reality differs. So the Creator should only emit confident knowledge
+for the platform it actually knows from its environment, and clearly stub
+out platforms it does not. The `a3ip platforms` detection is the spec's
+named Tier 3 semantic for this.
+
+### Fallback
+
+If `a3ip platforms` is unavailable (CLI older than v1.4.0), tell the user
+explicitly: *"Can't auto-detect platform context — please tell me which host
+OS and AI runtime we're on, and which other platforms you have knowledge
+for."* Then upgrade the CLI: `pip install --upgrade a3ip`.
 
 ---
 
@@ -425,10 +470,11 @@ Call `a3ip validate`:
 a3ip validate <package_dir>
 ```
 
-The validator runs nine checks and outputs a JSON report:
+The validator runs 10 normative checks plus 3 v1.9 advisory warnings, and
+outputs a JSON report:
 `{"errors": [...], "warnings": [...], "ok": true/false}`.
 
-The nine checks are:
+The 10 normative checks (errors block install):
 
 1. **Config coverage** — every `{{config.key}}` in template files → declared in manifest
 2. **Script existence** — every declared script file → exists on disk
@@ -439,8 +485,16 @@ The nine checks are:
 7. **Refresh scripts** — every `refresh_script:` value → is a declared script key
 8. **Trust → permissions** — `network`/`write-local`/`shell-exec` scripts → `permissions:` block in manifest
 9. **Trust → plan section** — `write-local`/`shell-exec` scripts → `## Plan` section in INSTALL.md
+10. **INSTALL.md spec** — install_dir + installed.json wiring correct per spec template
 
-Do not proceed to Phase 4 until the report shows `"ok": true`.
+The 3 v1.9 advisory warnings (do not block install; harden to errors in v2.0):
+
+11. **Adapter outcome coverage** — runtime adapters address Step 5/6/7 outcomes (skills/artifacts/protocols)
+12. **INSTALL.md tier shape** — Tier 2 steps free of procedure-language leakage
+13. **Adapter knowledge-shape** — adapters are more prose than code (prose:code ratio ≥ 2:1)
+
+Do not proceed to Phase 4 until the report shows `"ok": true` (errors == 0).
+Warnings can be ignored or addressed at the author's discretion in v1.9.
 
 ### Auto-Fix Playbook
 
@@ -603,7 +657,9 @@ When the user wants to release an updated version of an existing package.
 
 Before running any Phase 5 script, confirm the installed `a3ip` CLI meets the
 manifest's declared minimum version. The Creator manifest declares
-`a3ip >=1.2.1` under `dependencies.tools`.
+`a3ip >=1.4.0` under `dependencies.tools`. v1.4.0 is required because Phase
+0.5 platform detection uses the `a3ip platforms` command (added in v1.4.0)
+and Validate (Phase 3) relies on v1.4.0's Checks 11/12/13 for v1.9 alignment.
 
 Run:
 
@@ -619,17 +675,17 @@ to the manifest's `dependencies.tools[name=a3ip].version` constraint.
   ```
   pip install --upgrade --user a3ip
   ```
-  Then re-run `a3ip --version` to confirm ≥1.2.1. Tell the user just the
-  outcome (e.g. *"a3ip CLI 1.2.1 installed — continuing"*). Continue to
+  Then re-run `a3ip --version` to confirm ≥1.4.0. Tell the user just the
+  outcome (e.g. *"a3ip CLI 1.4.0 installed — continuing"*). Continue to
   Step 1 once the CLI is current.
 
 - **At or above the minimum:** continue to Step 1.
 
 - **Fallback:** if `pip` is missing or `pip install` fails, surface the error
   to the user with the exact command to run, and stop until resolved. Don't
-  proceed with sync.py / new_version.py / `a3ip validate` / `a3ip bundle` on a
-  stale CLI — older versions silently skip Check 10 and produce non-compliant
-  packages.
+  proceed with sync.py / new_version.py / `a3ip validate` / `a3ip bundle` on
+  a stale CLI — older versions skip the v1.9 alignment checks (11/12/13) and
+  produce packages that won't pass v2.0 validation later.
 
 The same auto-upgrade behavior is in INSTALL.md Step 3 (Dependency Check), so
 fresh installs of the Creator skill provision the CLI without bothering the

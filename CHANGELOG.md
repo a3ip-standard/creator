@@ -72,6 +72,89 @@ New version entries go at the **top** of this file (newest first).
 
 ---
 
+---
+
+## 2.0.0
+
+*Released: 2026-05-21*
+
+### Summary
+
+Major bump — re-aligns the Creator to A3IP spec v1.9 (outcome-shaped Tier 2
+install steps, adapters as Tier 3 platform-knowledge). Four changes:
+
+1. **`min_a3ip_spec` bumped 1.8 → 1.9.** The Creator now targets spec v1.9
+   and ships `docs/A3IP-SPEC-v1.9.md` for Phase 0's local-fallback read.
+   v1.9 is a re-alignment release of the existing spec, not a behavioral
+   evolution — it codifies discipline that was always implicit in
+   CONCEPT.md's three-tier model.
+
+2. **`scaffold.py` INSTALL.md template re-shaped to outcomes.** Steps 5/6/7
+   renamed from procedure language ("Install Skills" / "Set Up Artifacts" /
+   "Register Protocols") to outcome language ("Make skills discoverable to
+   the host runtime" / "Make artifacts available on the host runtime" /
+   "Make protocols invocable on the host runtime"), each with a
+   `*Tier: 2 (required outcome -- adapter procedure)*` marker and a short
+   outcome description that points at `adapters/runtime/<your-platform>/`
+   for the HOW. The `spec_ver` constant baked into scaffolded
+   manifest/CONFIGURE/INSTALL frontmatter bumped from "1.7" to "1.9".
+
+3. **SKILL.md gains Phase 0.5 — Detect Platform Context.** After Phase 0
+   (read the spec), the Creator now calls `a3ip platforms --json` to
+   determine its own host OS and AI runtime, and uses the result to anchor
+   Intake Group 1's platform question. This addresses the question Max
+   raised on 2026-05-21: the Creator already knows what platform it's
+   running on, so the platform question is partially pre-answered. The
+   rationale section explains why: knowledge written for the wrong
+   platform is worse than no knowledge, so the Creator should only emit
+   confident first-hand knowledge for its detected platform and stub the
+   rest.
+
+4. **CLI dependency bumped `>=1.3.2` → `>=1.4.0`.** v1.4.0 ships the
+   `a3ip platforms` command (used by Phase 0.5) and the v1.9 validator
+   checks 11/12/13 (used by Phase 3). Phase 5 Step 0's CLI version gate
+   auto-upgrades, so existing Creator installs pick this up on first
+   "release a new version" invocation.
+
+The Creator skill phase count goes from 7 to 8 (Phase 0.5 added). Phase 3's
+"9 checks" wording in SKILL.md is updated to "10 normative checks plus 3
+v1.9 advisory warnings (Checks 11-13)" to match CLI v1.4.0.
+
+### Upgrade steps
+
+For users with an existing Creator install (Cowork Personal Skill):
+
+1. Save the new `a3ip-creator.skill` (presented at end of release).
+2. Click **Save skill** in Cowork; confirm overwrite of the prior version.
+3. Restart Cowork so the new SKILL.md loads.
+4. The first time you say "release a new version" or similar, Phase 5
+   Step 0 will auto-upgrade your `a3ip` CLI to >=1.4.0 if needed.
+
+For users authoring new packages: nothing to do; `a3ip-creator` will
+detect the v1.9 spec from `docs/A3IP-SPEC-v1.9.md`, run Phase 0.5 to
+auto-detect platform context, and scaffold outcome-shaped INSTALL.md
+templates by default.
+
+### Breaking changes
+
+None for **existing packages** the Creator has previously scaffolded —
+spec v1.9 is backward-compatible with v1.8, so older packages remain
+valid under v1.9. The renamed step titles only affect packages scaffolded
+by Creator v2.0+ going forward.
+
+The Creator's own CLI minimum version is bumped (`>=1.3.2` → `>=1.4.0`).
+This is breaking for users who somehow can't update their CLI, but Phase
+5 Step 0 auto-upgrades and Phase 0.5 falls back gracefully if `a3ip
+platforms` is unavailable, so in practice this should not surface.
+
+### Files changed
+
+- `manifest.yaml` — bumped to 2.0.0; `min_a3ip_spec` 1.8 → 1.9; CLI dep `>=1.3.2` → `>=1.4.0`
+- `CHANGELOG.md` — this entry prepended
+- `components/skills/a3ip-creator/SKILL.md` — Phase 0.5 added; Phase 3 check list updated to 10 + 3 warnings; Phase 5 Step 0 CLI gate bumped to 1.4.0
+- `scripts/scaffold.py` — INSTALL.md template Steps 5/6/7 renamed with Tier 2 markers; `spec_ver` 1.7 → 1.9 in three places
+- `docs/A3IP-SPEC-v1.9.md` — added (copy of spec v1.9 for Phase 0 local fallback)
+
 ## 1.14.1
 
 *Released: 2026-05-17*

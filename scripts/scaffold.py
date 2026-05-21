@@ -191,7 +191,7 @@ def build_manifest(pkg: dict) -> str:
     v12 = _uses_v12_features(pkg)
 
     now_date = datetime.utcnow().strftime("%Y-%m-%d")
-    spec_ver = "1.7"
+    spec_ver = "1.9"
     lines = [
         "# ─────────────────────────────────────────",
         "# A3IP Manifest",
@@ -596,7 +596,7 @@ def build_configure(pkg: dict) -> str:
     during_keys = [k for k in config_keys if k.get("when") == "during"]
     after_keys = [k for k in config_keys if k.get("when") == "after"]
 
-    spec_ver = "1.7"
+    spec_ver = "1.9"
     parts = [
         "---",
         "format: a3ip-configure",
@@ -752,7 +752,7 @@ def build_install(pkg: dict) -> str:
         step += 1
         return f"## {step}. {title}"
 
-    spec_ver = "1.7"
+    spec_ver = "1.9"
     lines = [
         "---",
         "format: a3ip-install",
@@ -1002,7 +1002,14 @@ def build_install(pkg: dict) -> str:
     cowork_listed = "cowork" in [p.lower() for p in pkg.get("platforms", [])]
     if skills:
         lines += [
-            s("Install Skills"),
+            s("Make skills discoverable to the host runtime"),
+            "*Tier: 2 (required outcome -- adapter procedure)*",
+            "",
+            "After this step, the host runtime MUST be able to load each skill",
+            "in `components/skills/` when its trigger phrases appear. The",
+            "procedure depends on the runtime -- consult",
+            "`adapters/runtime/<your-platform>/install-skill.md` for platform",
+            "conventions and a worked example.",
             "",
         ]
         if cowork_listed:
@@ -1034,7 +1041,15 @@ def build_install(pkg: dict) -> str:
     # Set up artifacts
     if artifacts:
         lines += [
-            s("Set Up Artifacts"),
+            s("Make artifacts available on the host runtime"),
+            "*Tier: 2 (required outcome -- adapter procedure)*",
+            "",
+            "After this step, each artifact declared in the package MUST be in a",
+            "form the user can open and the runtime can update. On HTML-capable",
+            "runtimes this typically means an artifact card; on text-only",
+            "runtimes it means the markdown fallback file is in place. Consult",
+            "`adapters/runtime/<your-platform>/install-skill.md` for the",
+            "platform's artifact mechanism.",
             "",
         ]
         if cowork_listed:
@@ -1065,7 +1080,14 @@ def build_install(pkg: dict) -> str:
     # Register protocols
     if protocols:
         lines += [
-            s("Register Protocols"),
+            s("Make protocols invocable on the host runtime"),
+            "*Tier: 2 (required outcome -- adapter procedure)*",
+            "",
+            "After this step, each protocol's trigger phrase MUST be recognized",
+            "by the host runtime. The registration mechanism depends on the",
+            "runtime -- slash commands, remembered instructions, AGENTS.md",
+            "stanzas, or skill-level trigger declarations. Apply registration",
+            "per `adapters/runtime/<your-platform>/install-skill.md`.",
             "",
         ]
         if cowork_listed:
