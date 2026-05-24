@@ -51,17 +51,22 @@ multiple times. Phase 0 is the corrective.
 
 ### Step 0.2 — Locate the spec text
 
-In order of preference:
+In order of preference (web first since v2.1.0 — the canonical spec on GitHub
+is always current; the bundled copy is an offline safety net that may lag
+behind in-place patches to the same version number):
 
-1. **Local copy (preferred):** look for `docs/A3IP-SPEC-v{version}.md` next to
-   this SKILL.md file. The skill ships with the spec versions it targets.
-2. **Web fetch:** if the local copy is missing, fetch:
+1. **Web fetch (preferred):** fetch the canonical spec from:
    ```
    https://raw.githubusercontent.com/a3ip-standard/spec/main/docs/A3IP-SPEC-v{version}.md
    ```
-   Use whatever web fetch capability is available in your environment.
-3. **Ask the user:** if neither works, ask the user to provide the spec text or
-   point you at a local path.
+   Use whatever web fetch capability is available in your environment. This
+   is the authoritative copy and gets any v1.10-style in-place patches.
+2. **Local copy (offline fallback):** if web fetch is unavailable or blocked,
+   look for `docs/A3IP-SPEC-v{version}.md` next to this SKILL.md file. The
+   skill ships with the spec versions it targets. Note: this copy was current
+   at the Creator's release time but may have been patched since on GitHub.
+3. **Ask the user:** if neither works, ask the user to provide the spec text
+   or point you at a local path.
 
 If the version found in Step 0.1 is older than the latest available, tell the
 user and offer to bump.
@@ -438,13 +443,16 @@ Notes:
 
 ## Phase 2 — Scaffold
 
-Once intake.json is written, call scaffold.py:
+Once intake.json is written, call the CLI's `scaffold` subcommand:
 
 ```
-python3 <skill_dir>/scripts/scaffold.py <intake.json> <output_dir>
+a3ip scaffold <intake.json> --output-dir <output_dir>
 ```
 
-scaffold.py creates the full package directory at `<output_dir>/<name>.a3ip/`.
+(v2.1.0+: this replaces the previous `python3 scripts/scaffold.py` invocation.
+The scaffold logic now lives in the `a3ip` CLI v1.5.0+ — see `a3ip scaffold --help`.)
+
+`a3ip scaffold` creates the full package directory at `<output_dir>/<name>.a3ip/`.
 
 It generates:
 - `manifest.yaml` (from all intake fields)
@@ -613,11 +621,14 @@ Note: The CLI always includes `spec_url:` pointing to the canonical spec on GitH
 a3ip bundle <package_dir>
 ```
 
-Optionally call zip_package.py:
+Optionally call `a3ip zip` for human file transfer:
 
 ```
-python3 <skill_dir>/scripts/zip_package.py <package_dir>
+a3ip zip <package_dir>
 ```
+
+(v2.1.0+: replaces the previous `python3 scripts/zip_package.py` invocation.
+The zip logic now lives in `a3ip` CLI v1.5.0+.)
 
 This generates `<name>.a3ip.zip` next to the package directory.
 
@@ -692,28 +703,31 @@ fresh installs of the Creator skill provision the CLI without bothering the
 user. Step 0 is the runtime backstop for users whose CLI drifted out of date
 since install.
 
-### Step 1 -- Run sync.py to detect what changed
+### Step 1 -- Run `a3ip sync` to detect what changed
 
-Always start here. sync.py compares the current package directory against the
-baseline recorded at last bundle time. It tells you exactly what changed — you
-do not need to ask the user.
+Always start here. `a3ip sync` compares the current package directory against
+the baseline recorded at last bundle time. It tells you exactly what changed —
+you do not need to ask the user.
 
 ```
-python3 <skill_dir>/scripts/sync.py <package_dir>
+a3ip sync <package_dir>
 ```
 
-sync.py outputs:
+(v2.1.0+: replaces the previous `python3 scripts/sync.py` invocation. The
+sync logic now lives in `a3ip` CLI v1.5.0+.)
+
+`a3ip sync` outputs:
 - The list of modified / added / deleted files
 - A suggested semver bump type (patch / minor / major) with reasoning
 - A ready-to-paste `### Files changed` block for CHANGELOG.md
-- Writes `.a3ip-sync-report.json` for new_version.py to consume automatically
+- Writes `.a3ip-sync-report.json` for `a3ip new-version` to consume automatically
 
-**If sync.py reports "No changes since last bundle":** tell the user there is
-nothing to release — the package is identical to the last bundle.
+**If `a3ip sync` reports "No changes since last bundle":** tell the user there
+is nothing to release — the package is identical to the last bundle.
 
-**If sync.py finds changes:** review the diff with the user. The suggested bump
-type is a heuristic — confirm with the user, especially if manifest.yaml or
-any deletions are involved (those could be breaking).
+**If `a3ip sync` finds changes:** review the diff with the user. The suggested
+bump type is a heuristic — confirm with the user, especially if manifest.yaml
+or any deletions are involved (those could be breaking).
 
 ### Step 2 -- Determine new version number
 
@@ -724,14 +738,17 @@ Using the sync output as the basis, suggest the new version following semver:
 
 Confirm the version with the user.
 
-### Step 3 -- Run new_version.py
+### Step 3 -- Run `a3ip new-version`
 
 ```
-python3 <skill_dir>/scripts/new_version.py <package_dir> <new_version>
+a3ip new-version <package_dir> <new_version>
 ```
 
-This script:
-1. Reads `.a3ip-sync-report.json` (written by sync.py) and surfaces the suggested bump
+(v2.1.0+: replaces the previous `python3 scripts/new_version.py` invocation.
+The version-bump logic now lives in `a3ip` CLI v1.5.0+.)
+
+This command:
+1. Reads `.a3ip-sync-report.json` (written by `a3ip sync`) and surfaces the suggested bump
 2. Bumps `version:` in manifest.yaml
 3. Updates `latest_change:` in manifest.yaml to today
 4. Prepends a changelog entry to CHANGELOG.md with `### Files changed` already

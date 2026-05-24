@@ -74,6 +74,78 @@ New version entries go at the **top** of this file (newest first).
 
 ---
 
+---
+
+## 2.1.0
+
+*Released: 2026-05-24*
+
+### Summary
+
+Thin-wrapper migration: the Creator no longer ships its own copies of
+`scaffold.py`, `sync.py`, `new_version.py`, or `zip_package.py`. Those four
+authoring capabilities are now first-class subcommands of the `a3ip` CLI
+(v1.5.0+) and the Creator's SKILL.md invokes them directly. This removes
+roughly 75 KB of duplicate code from the Creator bundle and makes the CLI the
+single source of truth for the package-authoring surface.
+
+Two other changes ride along in this release:
+
+1. **Spec target bump 1.9 -> 1.10.** Includes the v1.10 uninstall lifecycle
+   (Steps UN1-UN8), the new `preserve_on_uninstall` per-key field, and the
+   patched outcome-based discovery model. `docs/A3IP-SPEC-v1.10.md` is shipped
+   as the offline fallback for Phase 0.
+2. **Phase 0 spec-fetch order flipped.** The Creator now tries the canonical
+   spec on GitHub first and falls back to the bundled `docs/` copy only when
+   web fetch is unavailable. This ensures the AI always reads the current
+   patched version of the spec, even when v1.10-style in-place patches land
+   between Creator releases.
+
+### Upgrade steps
+
+For Cowork users (re-installing the .skill from the new bundle):
+
+1. Open the Cowork UI, locate the installed `a3ip-creator` skill, and remove
+   it (or keep it -- re-install will overwrite).
+2. Drag the new `a3ip-creator.skill` into Cowork. Click **Save skill**.
+3. Restart Cowork so the new SKILL.md takes effect.
+4. Ensure `a3ip` CLI is at v1.5.0 or higher: `pip install --upgrade a3ip`.
+   The Creator's Phase 5 Step 0 will refuse to run against older CLIs because
+   the manifest's `dependencies.tools[a3ip].version` is now `>=1.5.0`.
+
+For users invoking the bundle programmatically: the four `scripts/*.py` files
+are gone. Update any external automation that called them to call the
+equivalent `a3ip` subcommand:
+
+| Old | New |
+|---|---|
+| `python3 scripts/scaffold.py <intake.json> <outdir>` | `a3ip scaffold <intake.json> --output-dir <outdir>` |
+| `python3 scripts/sync.py <pkg_dir>` | `a3ip sync <pkg_dir>` |
+| `python3 scripts/new_version.py <pkg_dir> <ver>` | `a3ip new-version <pkg_dir> <ver>` |
+| `python3 scripts/zip_package.py <pkg_dir>` | `a3ip zip <pkg_dir>` |
+
+### Breaking changes
+
+- **`scripts/` directory is now empty.** Any external automation that imported
+  the Creator's scripts as Python modules (rather than invoking via the CLI)
+  must be updated. The functional equivalents live in `a3ip.scaffold_cmd`,
+  `a3ip.sync_cmd`, `a3ip.new_version_cmd`, and `a3ip.zip_cmd` in the CLI
+  package on PyPI.
+- **`dependencies.tools[a3ip].version` raised to `>=1.5.0`.** Installs against
+  older CLIs are refused at Phase 0 of any Creator workflow.
+
+### Files changed
+
+- `manifest.yaml` - bumped
+- `CHANGELOG.md` - replaced
+- `components/skills/a3ip-creator/SKILL.md` - replaced
+- `manifest.yaml` - replaced
+- `docs/A3IP-SPEC-v1.10.md` - added
+- `scripts/new_version.py` - deleted
+- `scripts/scaffold.py` - deleted
+- `scripts/sync.py` - deleted
+- `scripts/zip_package.py` - deleted
+
 ## 2.0.0
 
 *Released: 2026-05-21*
