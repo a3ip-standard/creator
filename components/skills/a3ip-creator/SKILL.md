@@ -5,7 +5,7 @@ description: >
   intake conversation, then drives the `a3ip` CLI through scaffold, validate,
   and bundle to produce a distributable .a3ip.bundle. Platform-agnostic by
   design — outcomes are stated in this file; runtime-specific HOW lives in
-  adjacent adapters/runtime/<platform>/skill-runtime.md files.
+  adjacent per-runtime adapter files under adapters/runtime/.
   Invoke when the user wants to create a new A3IP package or workflow package.
 ---
 
