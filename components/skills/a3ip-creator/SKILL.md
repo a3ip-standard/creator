@@ -1,12 +1,12 @@
 ---
 name: a3ip-creator
 description: >
-  Guides the AI through authoring a new A3IP package from scratch.
-  Conducts a structured intake conversation, then calls scaffolding scripts
-  to generate a complete, validated, bundled A3IP package.
+  Guides the AI through authoring a new A3IP package. Conducts a structured
+  intake conversation, then drives the `a3ip` CLI through scaffold, validate,
+  and bundle to produce a distributable .a3ip.bundle. Platform-agnostic by
+  design — outcomes are stated in this file; runtime-specific HOW lives in
+  adjacent adapters/runtime/<platform>/skill-runtime.md files.
   Invoke when the user wants to create a new A3IP package or workflow package.
-version: "1.0.0"
-scripts_dir: scripts/
 ---
 
 # A3IP Creator Skill
@@ -25,6 +25,38 @@ package lifecycle across eight phases:
 
 Read this file completely before beginning. Every rule here exists because of a
 real pain point encountered while hand-authoring the first A3IP package.
+
+---
+
+## Runtime adapter consultation
+
+This SKILL.md is platform-agnostic. It states the OUTCOMES each phase must
+reach. The HOW for platform-specific operations is described in adjacent
+runtime adapter files: `adapters/runtime/<your-platform>/skill-runtime.md`.
+
+Platforms covered first-hand: `cowork`, `codex`, `claude-code`. Others
+(`cursor`, future runtimes) are described by similarity or stubbed.
+
+Operations the AI MUST consult the runtime adapter for:
+
+| Operation in this skill | Consult adapter for HOW |
+|---|---|
+| Read/write a file on disk | Yes — file-tool choice varies by runtime |
+| Ask the user a structured question | Yes — some runtimes have native question UIs, others use natural-language prompts |
+| Present a file for the user to save (e.g., the .skill zip for Cowork install) | Yes — Cowork has present_files; other runtimes drop the path in chat |
+| Build a .skill zip (Cowork-specific install artifact) | Yes — only applies on runtimes whose install path uses .skill |
+| Run a `git` operation | Yes — shell choice varies by host OS and runtime sandbox |
+| Run a CLI command (`a3ip ...`, `pip ...`, `py -3 ...`) | Yes — host shell selection varies, see adapter |
+
+Operations the AI does NOT need adapter consultation for:
+
+- Calling any `a3ip` CLI subcommand (`scaffold`, `validate`, `bundle`, `sync`,
+  `new-version`, `zip`, `platforms`). These are runtime-agnostic by design.
+- Reasoning, planning, content composition, intake conversations.
+
+Step 0.5 (Detect Platform Context) tells the AI which adapter file to load.
+On runtimes where the adapter is missing, the AI states the outcome each step
+needs and asks the user to confirm tool choice when ambiguous.
 
 ---
 
@@ -143,6 +175,32 @@ explicitly: *"Can't auto-detect platform context — please tell me which host
 OS and AI runtime we're on, and which other platforms you have knowledge
 for."* Then upgrade the CLI: `pip install --upgrade a3ip`.
 
+### Platform-config — passing structured platform metadata to scaffold
+
+CLI v1.5.2+ accepts a `--platform-config <PATH>` flag on `a3ip scaffold`
+that supplies per-platform metadata (display_name, default_config_dir,
+install_method, host_os_default, description, adapter_file_authored)
+used to fill scaffold templates without baking any specific platform
+into the CLI.
+
+The Creator ships its own canonical platform-config at
+**`components/platform-config.json`** with entries for `cowork`,
+`codex`, and `claude-code`. The schema is documented in the CLI repo
+at `docs/platform-config.schema.json`.
+
+This file is the source of truth for the Creator's platform routing
+during scaffold (Phase 2). If the user's package targets only a
+subset of these platforms (e.g. just `cowork` + `codex`), the
+intake's `platforms` list narrows the routing — the platform-config
+itself does not need editing.
+
+If the user wants to add a NEW platform the Creator doesn't yet
+know about (e.g. `cursor`, `aider`, an in-house runtime), they
+should create their own platform-config.json (copy the Creator's,
+add the new entry) and pass that path explicitly during Phase 2.
+The Creator's bundled file is the well-known default; user-supplied
+files are first-class.
+
 ---
 
 ## Critical Rules (burn these in)
@@ -167,7 +225,9 @@ If any script targets Windows (PS1), a Python fallback must also exist. Ask abou
 OS requirements for every script during intake, before writing anything.
 
 **Rule 5 — Use script key notation in protocols, never hardcoded paths.**
-Protocols say `run script <key>`, never `run C:\Users\...\script.ps1`.
+Protocols say `run script <key>`, never `run /absolute/path/to/script.py` or
+`run C:\Users\...\script.ps1`. The installing AI resolves the key to a path
+using the platform conventions in the runtime adapter.
 
 **Rule 6 — Auth flows must be scaffolded explicitly.**
 Any component that makes authenticated API calls needs a one-time auth step in
@@ -190,20 +250,148 @@ a step mid-way, re-run scaffold rather than manually editing step numbers.
 
 ---
 
-## Scripts Reference
+## CLI Reference
 
-All scripts live in the `scripts/` directory next to this SKILL.md file.
-The bash paths below use the shell's working directory — adjust to the absolute
-path of this skill's `scripts/` folder.
+All authoring operations are CLI subcommands of `a3ip` (v1.5.0+). The Creator
+calls them directly; there are no scripts bundled with this skill since v2.1.0.
 
-| Script | Purpose | Invocation |
+| Subcommand | Purpose | Invocation |
 |---|---|---|
-| `scaffold.py` | Generate package from intake JSON | `python3 scaffold.py <intake.json> <output_dir>` |
-| `a3ip validate` | Run all completeness checks (CLI) | `a3ip validate <package_dir>` |
-| `a3ip bundle` | Generate .a3ip.bundle (CLI) | `a3ip bundle <package_dir>` |
-| `zip_package.py` | Generate .a3ip.zip | `python3 zip_package.py <package_dir> [output_path]` |
-| `sync.py` | Detect changes since last bundle | `python3 sync.py <package_dir>` |
-| `new_version.py` | Cut a new package version | `python3 new_version.py <package_dir> <new_version>` |
+| `a3ip scaffold` | Generate package from intake JSON | `a3ip scaffold <intake.json> --output-dir <dir>` |
+| `a3ip validate` | Run all completeness checks (10 normative + 4 advisory) | `a3ip validate <package_dir>` |
+| `a3ip bundle` | Generate .a3ip.bundle | `a3ip bundle <package_dir>` |
+| `a3ip zip` | Generate .a3ip.zip for human file transfer | `a3ip zip <package_dir>` |
+| `a3ip sync` | Detect changes since last bundle | `a3ip sync <package_dir>` |
+| `a3ip new-version` | Cut a new package version | `a3ip new-version <package_dir> <new_version>` |
+| `a3ip platforms` | Detect host OS and AI runtime | `a3ip platforms --json` |
+
+How to invoke `a3ip` on the host shell is platform-specific — see
+`adapters/runtime/<platform>/skill-runtime.md`. The subcommands themselves are
+identical across platforms.
+
+---
+
+## Phase 0.7 — Discovery mode (optional alternative entry to Phase 1)
+
+Discovery is the inverse of Intake. Intake asks the user to declare the
+package they want; Discovery investigates an existing workflow and
+reverse-engineers a draft from it. Use Discovery when the user has a
+pre-existing workflow they want to package as A3IP — typically: an
+AI-built skill in their Cowork, a research workspace iterated on over
+weeks, an accumulated project they don't know how to describe formally.
+
+### When to enter Phase 0.7 (vs. going straight to Phase 1)
+
+Trigger phrases routing to Discovery:
+
+- "package this workspace" / "make this workflow an A3IP package"
+- "discover what's in this project" / "investigate this directory"
+- "I have an existing workflow I want to share"
+- "package this skill I've been using"
+
+Trigger phrases routing straight to Phase 1 Intake:
+
+- "create a new A3IP package" / "design a workflow"
+- "I want to author a package from scratch"
+
+If the user is ambiguous, ask one question: *"Are you (a) designing a
+new workflow from scratch, or (b) packaging an existing workflow you
+already use?"* Answer (a) → Phase 1. Answer (b) → Phase 0.7.
+
+### What Discovery investigates — six lanes
+
+Each finding is tagged with a confidence level (high / medium / low).
+The lanes are read-only investigations — Discovery never modifies the
+user's workflow files.
+
+**Lane 1: Workspace tree scan** — catalogue workflow-shaped
+subdirectories (`papers/`, `experiments/`, `tasks/`, `tickets/`,
+etc.), detect file naming conventions (slug / date-prefixed / numbered),
+extract frontmatter schemas as the union of keys across 5–10 sampled
+files per noun. Tools: Read, Glob, `mcp__filesystem__directory_tree`.
+
+**Lane 2: Skill inventory** — enumerate installed skills via
+`mcp__skills__list_skills` (Cowork) or scan `~/.codex/skills/`,
+`~/.claude/skills/` (Codex, Claude Code). Match skills whose
+`description:` mentions workspace nouns. Ask the user to confirm the
+target skill if multiple candidates plausible.
+
+**Lane 3: Skill content extraction** — read the target SKILL.md;
+extract triggers (from `description:` frontmatter), procedural steps,
+referenced scripts, referenced artifacts, and config keys (placeholders
+like `{{workspace_dir}}`). These become protocols, scripts, artifacts,
+and configuration in the package.
+
+**Lane 4: Cowork artifact inventory** — call
+`mcp__cowork__list_artifacts` and match artifacts whose names reference
+workspace nouns or appear in SKILL.md. Read each artifact's HTML to
+confirm shape. Surface a discrepancy if SKILL.md declares an artifact
+not present in the runtime (install-time setup gap).
+
+**Lane 5: Memory & CLAUDE.md mining** — read auto-memory's `MEMORY.md`
+and any project `CLAUDE.md` for user-role and workflow-purpose
+context. These supply the WHY the AI cannot infer from files alone.
+
+**Lane 6: MCP & tool inventory** — scan scripts the SKILL.md
+references for imports / external calls; cross-reference against
+connected MCPs. Flag missing dependencies as "user must connect this
+MCP before install".
+
+### Confidence rules
+
+- **High** (item documented in SKILL.md, or pattern appears in >50%
+  of sampled files): goes straight into draft intake.json.
+- **Medium** (observed but not documented; pattern appears in
+  <50% of files; inferred from worked examples): goes into intake
+  but Phase 1 surfaces for user review.
+- **Low** (runtime-invented patterns; implicit conventions; single-file
+  observations): listed as candidates only; NOT included in intake
+  without explicit user confirmation in Phase 1.
+
+### Discovery output — the Discovery Report
+
+After all six lanes run, produce a markdown Discovery Report with
+sections per lane plus a draft intake.json. Save it as
+`<output_dir>/discovery-report.md`. The report is **read by Phase 1**,
+which walks each section with the user and produces the final
+intake.json.
+
+### How Phase 1 consumes Discovery output
+
+When entering Phase 1 from a Discovery Report:
+
+1. Read the report. Acknowledge: *"I found <N> workflow components.
+   Let me walk through them with you."*
+2. Walk each section. For each item:
+   - High → state as established; ask "any changes?"
+   - Medium → "I observed X — is that what you intended?"
+   - Low → ask explicitly: include / modify / omit?
+3. Fill any gaps Discovery couldn't extract (license, author email,
+   target platforms list — these always need user input).
+4. Produce the final intake.json. Phase 2 Scaffold runs identically
+   regardless of whether intake came from Discovery or blank-slate.
+
+### Edge cases
+
+- **User points at the wrong directory:** Lane 1 finds <2
+  workflow-shaped subdirectories AND Lane 2 finds no related skill.
+  Ask: "I didn't find a recognisable workflow shape here. Is it in a
+  different directory, or in your runtime's skills rather than the
+  filesystem?"
+- **Skill installed but workspace fresh:** Lanes 1, 5 produce no
+  output. Extract from SKILL.md only (Lanes 2, 3, 4, 6); note in
+  report that the workflow has not been exercised.
+- **Multiple plausible skills:** ask the user to pick before Lane 3
+  runs. Do not run Lane 3 on multiple skills.
+- **Implicit conventions conflict with documented ones:** surface as
+  **discrepancy**, not finding. The user decides which is correct.
+- **Running outside Cowork:** Lanes 2 and 4 substitute filesystem
+  scans of `~/.codex/skills/` or `~/.claude/skills/`; Lane 4 has no
+  equivalent for non-Cowork runtimes — note that Phase 1 will need
+  to ask about artifacts explicitly.
+
+For the full design rationale and test cases, see
+`DISCOVERY-DESIGN.md` at the Creator's repo root.
 
 ---
 
@@ -323,7 +511,7 @@ Ask: "Where should I create the package? (directory path)"
 ## Writing intake.json
 
 After collecting all answers, write an `intake.json` file to the output directory
-before calling scaffold.py. This is the canonical record of the intake session.
+before calling `a3ip scaffold`. This is the canonical record of the intake session.
 
 Schema:
 
@@ -443,21 +631,37 @@ Notes:
 
 ## Phase 2 — Scaffold
 
-Once intake.json is written, call the CLI's `scaffold` subcommand:
+Once intake.json is written, call the CLI's `scaffold` subcommand
+**with the Creator's bundled platform-config** so per-platform routing
+is filled in:
 
 ```
-a3ip scaffold <intake.json> --output-dir <output_dir>
+a3ip scaffold <intake.json> \
+    --output-dir <output_dir> \
+    --platform-config <creator_install_dir>/components/platform-config.json
 ```
 
-(v2.1.0+: this replaces the previous `python3 scripts/scaffold.py` invocation.
-The scaffold logic now lives in the `a3ip` CLI v1.5.0+ — see `a3ip scaffold --help`.)
+The `--platform-config` path points at the Creator's bundled
+`components/platform-config.json` (resolved from the Creator's
+install_dir at runtime). It declares the per-platform display
+names, default install dirs, install methods, host OS defaults,
+and adapter-authored status for `cowork`, `codex`, and
+`claude-code`. The CLI uses these values to fill the generated
+INSTALL.md, manifest, and Platform-Specific Notes — no platform
+is hardcoded inside the CLI.
 
-`a3ip scaffold` creates the full package directory at `<output_dir>/<name>.a3ip/`.
+If the user is targeting a platform not in the Creator's bundled
+config (e.g. `cursor`), follow Phase 0.5's "user-supplied platform-config"
+fallback: copy `components/platform-config.json`, add an entry for the
+new platform, pass the new path to `--platform-config`.
 
-It generates:
+`a3ip scaffold` creates the full package directory at
+`<output_dir>/<name>.a3ip/`. It generates:
+
 - `manifest.yaml` (from all intake fields)
 - `CONFIGURE.md` (generated from `configuration` array — single source of truth)
-- `INSTALL.md` (generated with numbered steps in correct order)
+- `INSTALL.md` (generated with numbered steps in correct order;
+  per-platform routing populated from platform-config)
 - `README.md` (generated from description and protocol list)
 - `components/skills/<name>/SKILL.md` (stub for each skill)
 - `components/artifacts/<name>/artifact.md` + `artifact.html` (stub for each artifact)
@@ -466,7 +670,42 @@ It generates:
 - `scripts/<key>.py` (Python stub for each script with `any` platform)
 - `adapters/windows/scripts/<key>.ps1` (PS1 stub for each script with `windows` platform)
 
-After scaffold.py runs, show the user what was created.
+### Phase 2.5 — Seed runtime adapter templates
+
+After `a3ip scaffold` completes, **copy the Creator's runtime adapter
+templates into the new package**, substituting the package name. The
+Creator bundles canonical install-skill.md + uninstall-skill.md pairs
+for each platform-config-known platform at
+`components/runtime-adapter-templates/<platform>/`.
+
+For each platform in the intake's `platforms` list that has
+`adapter_file_authored: true` in the platform-config (currently
+`cowork`, `codex`, `claude-code`):
+
+1. Read the source template from
+   `<creator_install_dir>/components/runtime-adapter-templates/<platform>/install-skill.md`.
+2. Replace all occurrences of `{{name}}` with the package name.
+3. Write the result to
+   `<output_dir>/<name>.a3ip/adapters/runtime/<platform>/install-skill.md`.
+4. Repeat for `uninstall-skill.md`.
+
+Each template carries a `> **This file is a Creator template.** ...`
+banner at the top instructing the package author to:
+- Customise the worked examples (replacing italicised `<your-skill-name>`,
+  `<your-artifact-name>`, `<your-script>` placeholders with the
+  package's actual component names).
+- Remove the banner before shipping a release.
+
+For platforms in the intake list that are NOT in the platform-config
+(e.g. `cursor` if the user's targeting it without supplying a custom
+platform-config), do NOT copy a template — emit a TODO marker
+adapter file directing the package author to write the runtime
+adapter from scratch using the spec's `Writing Adapter Documents`
+section as guidance.
+
+After `a3ip scaffold` + Phase 2.5 runs, show the user what was created.
+The output mechanism (file paths in chat, structured artifact, etc.)
+depends on the runtime — see the adapter for `present file list to user`.
 
 ---
 
@@ -478,8 +717,8 @@ Call `a3ip validate`:
 a3ip validate <package_dir>
 ```
 
-The validator runs 10 normative checks plus 3 v1.9 advisory warnings, and
-outputs a JSON report:
+The validator runs 10 normative checks plus 4 advisory warnings (v1.9 + v1.10),
+and outputs a JSON report:
 `{"errors": [...], "warnings": [...], "ok": true/false}`.
 
 The 10 normative checks (errors block install):
@@ -495,14 +734,15 @@ The 10 normative checks (errors block install):
 9. **Trust → plan section** — `write-local`/`shell-exec` scripts → `## Plan` section in INSTALL.md
 10. **INSTALL.md spec** — install_dir + installed.json wiring correct per spec template
 
-The 3 v1.9 advisory warnings (do not block install; harden to errors in v2.0):
+The 4 advisory warnings (do not block install; harden to errors in v2.0):
 
-11. **Adapter outcome coverage** — runtime adapters address Step 5/6/7 outcomes (skills/artifacts/protocols)
+11. **Adapter outcome coverage** — runtime adapters address Steps 1/5/6/7 outcomes (discovery + skills + artifacts + protocols); v1.10 extension also scans uninstall-skill.md
 12. **INSTALL.md tier shape** — Tier 2 steps free of procedure-language leakage
-13. **Adapter knowledge-shape** — adapters are more prose than code (prose:code ratio ≥ 2:1)
+13. **Adapter knowledge-shape** — adapters are more prose than code (prose:code ratio ≥ 2:1); v1.10 extension also scans uninstall-skill.md
+14. **Uninstall coverage** (v1.10+) — INSTALL.md contains an `## Uninstalling` section with Steps UN1-UN8
 
 Do not proceed to Phase 4 until the report shows `"ok": true` (errors == 0).
-Warnings can be ignored or addressed at the author's discretion in v1.9.
+Warnings can be ignored or addressed at the author's discretion.
 
 ### Auto-Fix Playbook
 
@@ -525,7 +765,7 @@ Fix:
 
 Error: `Script 'XYZ': declared file 'scripts/XYZ.py' does not exist.`
 
-Fix: Create the missing stub file at the declared path. Use the same stub pattern as scaffold.py
+Fix: Create the missing stub file at the declared path. Use the same stub pattern as `a3ip scaffold`
 produces: a Python (or PS1) file that loads the config, prints a `TODO` notice, and exits cleanly.
 
 **Check 3 — Undeclared config key in script**
@@ -602,33 +842,35 @@ before installation begins.
 
 ## Phase 4 — Build
 
-Before bundling, ask: **"Will you be sharing this package with people who
-may not be familiar with A3IP?"**
-
-- **Yes (external distribution):** embed the spec in the bundle so the receiving AI
-  can read it cold, without any prior A3IP knowledge.
-- **No (internal / personal use):** bundle without the spec to keep size down.
-
-**External distribution (include spec):**
+The bundle is the primary distribution artifact. The CLI always emits a
+`spec_url:` in the bundle frontmatter pointing to the canonical spec on
+GitHub, so any A3IP-aware AI can install the bundle without a local spec
+copy. Build with:
 
 ```
 a3ip bundle <package_dir>
 ```
 
-Note: The CLI always includes `spec_url:` pointing to the canonical spec on GitHub — no need to embed it. This is the standard distribution mode.
+That produces `<package_dir>/../<name>-v<version>.a3ip.bundle`. The bundle
+preamble (normative per spec v1.10) directs the installing AI to read
+INSTALL.md and the runtime adapter inside the bundle before doing any
+install work.
+
+**For airgapped / offline distribution** (the recipient cannot fetch the
+spec from GitHub), embed the spec inside the bundle:
 
 ```
-a3ip bundle <package_dir>
+a3ip bundle <package_dir> --spec <path-to-A3IP-SPEC-vX.Y.md>
 ```
 
-Optionally call `a3ip zip` for human file transfer:
+The `--spec` flag is the exception, not the default.
+
+**Optional human-friendly format.** For email / cloud-drive transfer to a
+human (who will hand the file to an AI to install), also produce a zip:
 
 ```
 a3ip zip <package_dir>
 ```
-
-(v2.1.0+: replaces the previous `python3 scripts/zip_package.py` invocation.
-The zip logic now lives in `a3ip` CLI v1.5.0+.)
 
 This generates `<name>.a3ip.zip` next to the package directory.
 
@@ -694,7 +936,7 @@ to the manifest's `dependencies.tools[name=a3ip].version` constraint.
 
 - **Fallback:** if `pip` is missing or `pip install` fails, surface the error
   to the user with the exact command to run, and stop until resolved. Don't
-  proceed with sync.py / new_version.py / `a3ip validate` / `a3ip bundle` on
+  proceed with `a3ip sync` / `a3ip new-version` / `a3ip validate` / `a3ip bundle` on
   a stale CLI — older versions skip the v1.9 alignment checks (11/12/13) and
   produce packages that won't pass v2.0 validation later.
 
@@ -712,9 +954,6 @@ you do not need to ask the user.
 ```
 a3ip sync <package_dir>
 ```
-
-(v2.1.0+: replaces the previous `python3 scripts/sync.py` invocation. The
-sync logic now lives in `a3ip` CLI v1.5.0+.)
 
 `a3ip sync` outputs:
 - The list of modified / added / deleted files
@@ -743,9 +982,6 @@ Confirm the version with the user.
 ```
 a3ip new-version <package_dir> <new_version>
 ```
-
-(v2.1.0+: replaces the previous `python3 scripts/new_version.py` invocation.
-The version-bump logic now lives in `a3ip` CLI v1.5.0+.)
 
 This command:
 1. Reads `.a3ip-sync-report.json` (written by `a3ip sync`) and surfaces the suggested bump
@@ -784,7 +1020,7 @@ Fix any errors. Then bundle (this also writes a new .a3ip-source.json baseline):
 a3ip bundle <package_dir>
 ```
 
-The new baseline is now set. The next sync.py run will diff against this version.
+The new baseline is now set. The next `a3ip sync` run will diff against this version.
 
 ---
 

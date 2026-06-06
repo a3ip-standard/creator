@@ -76,6 +76,99 @@ New version entries go at the **top** of this file (newest first).
 
 ---
 
+---
+
+## 3.0.0
+
+*Released: 2026-06-06*
+
+### Summary
+
+Phase 0.7 Discovery mode for packaging existing workflows. v3.0 turns
+the Creator from a blank-slate authoring tool into a tool that can
+also reverse-engineer an A3IP package from an existing skill, file
+tree, or accumulated workflow. Three new capabilities ship together:
+
+**1. Phase 0.7 — Discovery mode** (SKILL.md section added). An
+optional alternative entry to Phase 1 Intake. Six investigation lanes
+(workspace tree, skill inventory, skill content extraction, Cowork
+artifact inventory, memory/CLAUDE.md mining, MCP/tool inventory) tag
+findings with confidence (high / medium / low) and produce a Discovery
+Report that becomes Phase 1's starting input. Design rationale in
+`DISCOVERY-DESIGN.md`; dogfood validation against ai-research-workspace
+in `DISCOVERY-DOGFOOD-2026-06-06.md` (80% extraction bar met).
+
+**2. Canonical platform-config.json** (new component). The Creator
+now ships `components/platform-config.json` with entries for cowork,
+codex, and claude-code: display name, default install_dir, install
+method, host OS default, description, and adapter-authored status.
+Phase 2 Scaffold passes this to `a3ip scaffold --platform-config`
+(CLI v1.5.2+) so per-platform routing in generated INSTALL.md and
+manifests comes from data rather than CLI-baked defaults. Users
+targeting other platforms (cursor, aider, in-house) copy and extend
+this file.
+
+**3. Runtime adapter templates** (new components directory). Six
+canonical install-skill.md + uninstall-skill.md pairs at
+`components/runtime-adapter-templates/<platform>/` for cowork,
+codex, and claude-code. Phase 2.5 of Scaffold copies these into each
+new package's `adapters/runtime/<platform>/` with `{{name}}`
+substituted. Each template carries a banner instructing the package
+author to customise worked examples and remove the banner before
+release.
+
+SKILL.md is updated to teach all three: Phase 0.5 references the
+bundled platform-config; new Phase 0.7 section drives Discovery; new
+Phase 2.5 sub-step copies adapter templates after `a3ip scaffold`
+completes.
+
+### Upgrade steps
+
+Existing installs of a3ip-creator should refresh from this bundle.
+Cowork users: rebuild the `.skill` zip from the v3.0.0 bundle and
+re-save it via the Personal Skills UI (the install side handles this
+automatically when the new bundle is presented). Codex / Claude Code
+users: re-run the install flow against the v3.0.0 bundle to pick up
+the new components.
+
+No config keys changed; the existing `install_dir` value is
+preserved. The new component directories
+(`components/runtime-adapter-templates/`,
+`components/platform-config.json`) are added under the existing
+`{{install_dir}}/components/` and are read by Phase 2 / Phase 2.5
+of the next "create a package" invocation.
+
+### Breaking changes
+
+**Phase 2 scaffold invocation now requires CLI v1.5.2+ for full
+behaviour.** The SKILL.md instructs the AI to pass
+`--platform-config <path>` to `a3ip scaffold`. CLI v1.5.1 and
+earlier silently ignore the flag and produce scaffold output with
+TODO markers in place of per-platform routing. The Creator's
+manifest `dependencies.tools[a3ip].version` is bumped to `>=1.5.2`
+to enforce this.
+
+**Authoring flow has a new optional entry door.** Users who say
+"package this workspace" / "discover what's in this project" are
+routed to Phase 0.7 Discovery before Phase 1 Intake. Existing
+"create a package" invocations continue to land in Phase 1 directly
+as before — Discovery is additive, not replacement.
+
+### Files changed
+
+- `manifest.yaml` - bumped
+- `CHANGELOG.md` - replaced
+- `components/skills/a3ip-creator/SKILL.md` - replaced
+- `DISCOVERY-DESIGN.md` - added
+- `DISCOVERY-DOGFOOD-2026-06-06.md` - added
+- `components/platform-config.json` - added
+- `components/runtime-adapter-templates/claude-code/install-skill.md` - added
+- `components/runtime-adapter-templates/claude-code/uninstall-skill.md` - added
+- `components/runtime-adapter-templates/codex/install-skill.md` - added
+- `components/runtime-adapter-templates/codex/uninstall-skill.md` - added
+- `components/runtime-adapter-templates/cowork/install-skill.md` - added
+- `components/runtime-adapter-templates/cowork/uninstall-skill.md` - added
+
 ## 2.1.0
 
 *Released: 2026-05-24*

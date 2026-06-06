@@ -1,0 +1,30 @@
+{
+  "$schema": "https://github.com/a3ip-standard/cli/blob/main/docs/platform-config.schema.json",
+  "version": "1.0",
+  "platforms": {
+    "cowork": {
+      "display_name": "Cowork",
+      "default_config_dir": "~/.claude/packages/{{name}}/",
+      "install_method": "cowork-skill",
+      "host_os_default": "windows",
+      "description": "Anthropic Cowork - Personal Skills UI registration via .skill zip; first-class artifact registry via mcp__cowork__create_artifact",
+      "adapter_file_authored": true
+    },
+    "codex": {
+      "display_name": "Codex",
+      "default_config_dir": "~/.codex/packages/{{name}}/",
+      "install_method": "generic-copy",
+      "host_os_default": "windows",
+      "description": "OpenAI Codex - skill files at ~/.codex/skills/<name>/; registration via marker-bounded stanza in ~/.codex/AGENTS.md",
+      "adapter_file_authored": true
+    },
+    "claude-code": {
+      "display_name": "Claude Code",
+      "default_config_dir": "~/.claude/packages/{{name}}/",
+      "install_method": "generic-copy",
+      "host_os_default": "posix",
+      "description": "Anthropic Claude Code - skill files at ~/.claude/skills/<name>/; auto-discovered on session start, no separate registration step",
+      "adapter_file_authored": true
+    }
+  }
+}
