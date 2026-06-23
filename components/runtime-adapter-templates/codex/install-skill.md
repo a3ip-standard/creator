@@ -279,6 +279,20 @@ If the record already exists (from a previous install), leave it in
 place — it carries the user's most recent state. The SKILL.md updates
 the file in place on each trigger.
 
+**TODO-template semantics (do not "fix" the placeholders).** The
+bundled `components/artifacts/<artifact-name>/artifact.md` is a
+template with intentional TODO / placeholder markers (e.g.
+`<!-- TODO: yesterday's commits -->`, `## Pending first run`,
+`{{config.author_login}}'s standup will appear here after the first
+run`). Those markers are NOT bugs and the install AI MUST NOT
+rewrite them at install time — they're the contract between the
+template and the SKILL.md protocol: on each trigger, the runtime
+fills in the placeholders with live data sourced from MCP calls,
+config, or workspace state. Hand-edited content here would be
+overwritten on the next run and would mask whether the protocol is
+working. The install AI's job is to copy the template verbatim and
+let the first protocol run write real content.
+
 If `{{name}}` ships no artifacts, skip this step entirely.
 
 ### Step C7: Write installed.json

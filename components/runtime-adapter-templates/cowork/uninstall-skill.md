@@ -162,10 +162,54 @@ Read `~/.claude/packages/{{name}}/installed.json` via
 
 ### Step UC2: Show the Uninstall Plan (UN2 — mechanical, handled by INSTALL.md)
 
-Walk the config schema. Per the v1.10 `preserve_on_uninstall`
-annotations, ask one focused question per `ask` key, silently purge
-each `false` key, silently preserve each `true` key. Confirm and
-proceed.
+Walk the package's config schema (the `configuration:` section in
+`manifest.yaml`) one key at a time. Do NOT bulk-classify `config.json`
+as a whole — the v1.10 `preserve_on_uninstall` annotation is set
+per-key, and keys within the same file can have opposing policies.
+
+For EACH config key, in declared order, perform this loop:
+
+1. Read the key's `preserve_on_uninstall` value from the manifest.
+2. If `preserve_on_uninstall: true`, add the key to the "will be
+   PRESERVED" section of the uninstall plan. Do NOT ask the user.
+   Do NOT destroy it in UC6.
+3. If `preserve_on_uninstall: false`, add the key to the "will be
+   PURGED" section. Do NOT ask the user.
+4. If `preserve_on_uninstall: "ask"`, send the user ONE focused
+   question that names this key explicitly: e.g. "Keep `api_token`?
+   This stores the GitHub PAT used by the workflow. (y/N)".
+   Capture the response, then route the key into the matching
+   section of the plan.
+
+After the loop, present the assembled Uninstall Plan as TWO explicit
+lists — "Will be preserved" and "Will be purged" — with each key
+named. Add a third short list naming the install_dir files outside
+`config.json` that UC6 will delete. Get explicit user confirmation
+before continuing to UC3.
+
+Worked example (illustrative — adapt to this package's actual keys):
+
+```text
+Uninstall plan for {{name}} v1.2.3:
+
+Will be PRESERVED:
+  - api_token  (preserve_on_uninstall: true)
+
+Will be PURGED:
+  - workspace_dir   (preserve_on_uninstall: false)
+  - default_branch  (preserve_on_uninstall: false, user said "purge")
+
+Will be DELETED from install_dir:
+  - artifact records, cached state, install scripts
+
+Proceed? (y/N)
+```
+
+Common mistake (seen in the Sample B v1.1.0 dogfood, 2026-06-21):
+the install AI read `config.json` once, asked one yes/no question for
+the whole file, and silently destroyed everything in it. Sample A's
+`api_token` (preserve_on_uninstall: true) would have been destroyed
+that way. The per-key walk is load-bearing — don't shortcut it.
 
 ### Step UC3: Skill removal (UN3)
 
@@ -175,13 +219,59 @@ have done so before moving on.
 
 ### Step UC4: Artifact removal (UN4)
 
-For each artifact declared in the package: call
-`mcp__cowork__list_artifacts` to find matches by name. Remove each
-one. If the user chose to preserve config and the artifact carries
-non-derivable history, the AI MAY skip artifact removal at its
-discretion (this is the exception noted in INSTALL.md Step UN4).
+If the package declares zero artifacts in its manifest, skip this
+step entirely. Otherwise, for EACH artifact declared:
 
-If `{{name}}` ships no artifacts, skip.
+1. Call `mcp__cowork__list_artifacts()` to enumerate the user's
+   current artifacts.
+2. Filter for entries whose name (or title — whichever field the
+   runtime exposes) matches the artifact name declared by this
+   package. Multiple matches from prior installs are possible —
+   collect ALL of them, don't stop at the first.
+3. For each match, call `mcp__cowork__allow_cowork_file_delete(art["id"])`
+   (or the runtime's artifact-deletion equivalent if the surface has
+   evolved — consult the current Cowork MCP surface).
+4. Call `mcp__cowork__list_artifacts()` a second time to verify the
+   artifact is gone. If it still appears, fall back to asking the
+   user to remove it manually via the Cowork artifact sidebar UI,
+   then proceed.
+
+Worked example (one artifact named *`<your-artifact-name>`*):
+
+```python
+# 1. Enumerate
+artifacts = mcp__cowork__list_artifacts()
+
+# 2. Filter all matches by name (not just the first)
+matches = [a for a in artifacts if a["name"] == "<your-artifact-name>"]
+
+# 3. Delete each match
+for art in matches:
+    mcp__cowork__allow_cowork_file_delete(art["id"])
+
+# 4. Verify
+remaining = [a for a in mcp__cowork__list_artifacts()
+             if a["name"] == "<your-artifact-name>"]
+if remaining:
+    # Tell the user to remove manually via the Cowork sidebar.
+    ...
+```
+
+Exception (preserve case): if the user chose to preserve at least
+one configuration key in UC2 AND the artifact carries non-derivable
+history (past standups, past reviews, etc.), the AI MAY skip
+removal at its discretion. When skipping, name the artifact and its
+location in the UC8 report so the user knows it survived.
+
+Common mistake (seen in the Sample B v1.1.0 dogfood, 2026-06-21):
+the install AI assumed the user could remove the artifact later via
+the sidebar and skipped this step entirely — no
+`mcp__cowork__list_artifacts` call, no
+`mcp__cowork__allow_cowork_file_delete` call. Two artifacts
+(`paper-inbox`, `experiment-log`) remained in the user's sidebar
+after the uninstall "completed". The install side created the
+artifact via `mcp__cowork__create_artifact`; the uninstall side
+owns the symmetric removal.
 
 ### Step UC5: Protocols (UN5)
 
@@ -207,15 +297,66 @@ remove the directory too.
 
 ### Step UC8: Confirm (UN8 — mechanical)
 
-Tell the user the uninstall is complete. Name:
-1. The version that was uninstalled (from `installed.json`).
-2. Which configuration keys were preserved and where.
-3. Which keys were purged.
-4. That the Personal Skills entry has been removed and Cowork was
-   restarted — the package's triggers no longer fire.
-5. Any leftover state: e.g., if the user previously had history in an
-   artifact and the artifact was preserved, mention where it lives in
-   the Cowork sidebar.
+Send the user a final report that explicitly enumerates each of the
+five items below. This is the audit trail for the uninstall — do not
+summarize, do not omit a section, do not collapse two sections into
+one. Use the exact section labels from the worked example so the
+user can read the report at a glance.
+
+The report MUST contain:
+
+1. **Version uninstalled.** Quote the `version` field from the
+   `installed.json` you captured in UC1.
+
+2. **Keys preserved.** List each preserved key by name, its absolute
+   file path, and either its current value or `(value redacted)` if
+   the key is sensitive (tokens, secrets). If no keys were
+   preserved, write `none`.
+
+3. **Keys purged.** List each purged key by name. If no keys were
+   purged, write `none`.
+
+4. **Skill registration.** State whether the user has confirmed the
+   Personal Skills removal AND restarted Cowork (both required for
+   UC3 to be complete). If the restart has not happened yet, name
+   that as a follow-up so the user knows.
+
+5. **Leftover state.** If any artifact was preserved per the UC4
+   exception, name it and where it lives (sidebar location). If
+   `config_dir` still exists because preserved keys survived, name
+   the directory. Otherwise write `none`.
+
+Worked example (illustrative — adapt to this package's actual state):
+
+```text
+Uninstall complete for {{name}} v1.2.3.
+
+Version uninstalled: 1.2.3
+
+Keys preserved:
+  - api_token = (value redacted)
+    at ~/.claude/packages/{{name}}/config.json
+
+Keys purged:
+  - workspace_dir
+  - default_branch
+
+Skill registration:
+  Personal Skills entry removed; user confirms Cowork has been
+  restarted. The package's triggers no longer fire.
+
+Leftover state:
+  - Artifact "Last Review" preserved (UC4 exception, contains review
+    history). Visible in the Cowork artifact sidebar.
+  - config_dir ~/.claude/packages/{{name}}/ survives because
+    api_token was preserved.
+```
+
+Common mistake (seen in the Sample B v1.1.0 dogfood, 2026-06-21):
+the uninstall AI wrote a vague "Uninstall complete, all done!"
+message with no enumeration of preserved keys, purged keys, or
+leftover state. The user had no way to audit what survived. The
+five-section enumeration IS the contract.
 
 ## Edge cases
 
