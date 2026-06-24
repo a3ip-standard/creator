@@ -78,6 +78,66 @@ New version entries go at the **top** of this file (newest first).
 
 ---
 
+---
+
+## 3.0.1
+
+*Released: 2026-06-24*
+
+### Summary
+
+Conformance and clarity pass driven by the Sample B uninstall dogfood
+(2026-06-21) and the 2026-06-24 spec audit. Four substantive changes:
+
+- **Cowork uninstall adapter hardening.** UC2 now walks config keys
+  one at a time with imperative numbered sub-steps (no more bulk-classifying
+  config.json as a whole — that would silently destroy keys flagged
+  `preserve_on_uninstall: true`). UC4 walks the artifact-removal MCP calls
+  with explicit `list_artifacts` / `allow_cowork_file_delete` / verify
+  sequence (no more skipping artifact removal entirely). UC8 enumerates a
+  five-section confirmation contract (version, preserved keys, purged keys,
+  skill registration state, leftover state).
+- **Codex install adapter TODO-template note.** Documents that the
+  artifact.md fallback templates contain intentional TODO/placeholder
+  content that the SKILL.md protocol fills in at runtime — install AIs
+  MUST NOT hand-edit those markers, since they'd be overwritten on the
+  next run and would mask whether the protocol is working.
+- **Windows file-ops recovery section.** Adds a "Recovery from path-expansion
+  drift" subsection to `adapters/os/windows/file-ops.md`. Names a concrete
+  verification procedure (call `mcp__windows-cli` PowerShell `$env:USERPROFILE`)
+  when a tool returns "file not found" for a `~`-prefixed path. Prevents the
+  failure mode where an installed package gets misreported as missing
+  purely because the install AI's first tool choice expanded `~` to a
+  sandbox path rather than the Windows user home.
+- **Spec v1.10 sync.** `docs/A3IP-SPEC-v1.10.md` now reflects the
+  2026-06-24 patch to the canonical spec (preamble MUSTs collapsed,
+  Step UN6 rewritten as Tier 1 outcome, Step 5 articulate-mechanism
+  language moved to adapter writing-discipline rule 6).
+
+Also bumps the minimum `a3ip` CLI dependency to `>=1.5.4` so users get the
+scaffolder YAML escape fix (N-2026-06-22-03) when running `a3ip scaffold`
+on intakes whose placeholder/default values contain double-quoted JSON
+examples.
+
+### Upgrade steps
+
+No action required — non-breaking update. The improvements are picked up
+the next time the install/uninstall AI reads the bundled adapter files;
+nothing in the package's configuration schema changed.
+
+### Breaking changes
+
+None.
+
+### Files changed
+
+- `manifest.yaml` — bumped to 3.0.1, CLI dep min raised to `>=1.5.4`
+- `CHANGELOG.md` — this entry
+- `adapters/os/windows/file-ops.md` — added "Recovery from path-expansion drift" section
+- `docs/A3IP-SPEC-v1.10.md` — synced with the canonical spec patch (Findings 1/2/3 from the 2026-06-24 audit)
+- `components/runtime-adapter-templates/cowork/uninstall-skill.md` — UC2/UC4/UC8 hardened
+- `components/runtime-adapter-templates/codex/install-skill.md` — added TODO-template note
+
 ## 3.0.0
 
 *Released: 2026-06-06*

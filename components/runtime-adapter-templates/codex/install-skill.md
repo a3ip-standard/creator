@@ -283,8 +283,10 @@ the file in place on each trigger.
 bundled `components/artifacts/<artifact-name>/artifact.md` is a
 template with intentional TODO / placeholder markers (e.g.
 `<!-- TODO: yesterday's commits -->`, `## Pending first run`,
-`{{config.author_login}}'s standup will appear here after the first
-run`). Those markers are NOT bugs and the install AI MUST NOT
+or any `{{ config.<key> }}` substitution that names a config key
+from the package's own manifest — the runtime fills these in once
+the first protocol run produces real data). Those markers are NOT
+bugs and the install AI MUST NOT
 rewrite them at install time — they're the contract between the
 template and the SKILL.md protocol: on each trigger, the runtime
 fills in the placeholders with live data sourced from MCP calls,

@@ -1,6 +1,6 @@
 # A3IP Specification v1.10
 
-*Note: v1.10 supersedes v1.9. All v1.9 packages remain valid v1.10 packages — uninstall is additive. v1.10 closes the package lifecycle by adding the uninstall flow that v1.9 deferred. Changes: (a) new normative `## Uninstalling` section in the INSTALL.md template, with Tier-marked steps UN1–UN8; (b) `adapters/runtime/<X>/uninstall-skill.md` as the canonical location for per-runtime uninstall knowledge, parallel to `install-skill.md`; (c) Writing Adapter Documents section extended to require both-direction coverage for any Tier 2 outcome the adapter addresses; (d) existing-install discovery promoted to a Tier 2 outcome — the spec no longer prescribes a platform-default detection path; runtime adapters describe HOW to locate prior installs on each platform; (e) new `preserve_on_uninstall` field on configuration schema keys, replacing a single uniform uninstall policy with per-key, author-declared policy; (f) Validation Check 14 (Warning) — INSTALL.md should contain an `## Uninstalling` section. All changes are additive; no installation behavior changes.*
+*Note: v1.10 supersedes v1.9. All v1.9 packages remain valid v1.10 packages — uninstall is additive. v1.10 closes the package lifecycle by adding the uninstall flow that v1.9 deferred. Changes: (a) new normative `## Uninstalling` section in the INSTALL.md template, with Tier-marked steps UN1–UN8; (b) `adapters/runtime/<X>/uninstall-skill.md` as the canonical location for per-runtime uninstall knowledge, parallel to `install-skill.md`; (c) Writing Adapter Documents section extended to require both-direction coverage for any Tier 2 outcome the adapter addresses; (d) existing-install discovery promoted to a Tier 2 outcome — the spec no longer prescribes a platform-default detection path; runtime adapters describe HOW to locate prior installs on each platform; (e) new `preserve_on_uninstall` field on configuration schema keys, replacing a single uniform uninstall policy with per-key, author-declared policy; (f) Validation Check 14 (Warning) — INSTALL.md should contain an `## Uninstalling` section; (g) new normative `### Bundle preamble` subsection under Bundle Format — the prose between frontmatter and first FILE marker MUST direct the receiving AI to read INSTALL.md and the runtime adapter, and MUST name the "improvising from bundle structure" failure mode the preamble exists to prevent. All changes are additive; no installation behavior changes.*
 
 ## What's new in v1.10
 
@@ -27,7 +27,23 @@ The symmetry isn't decorative — it means an adapter that knows how to register
 
 **(f) Validation Check 14 (Warning).** INSTALL.md SHOULD contain an `## Uninstalling` section. Warning if absent — gentle adoption now, hardened to error in v2.0 (the same trajectory as Checks 11/12/13 from v1.9). The check is structural: it looks for the section header. Step structure inside the section is the author's responsibility.
 
-**Backward compatibility:** All v1.9 packages remain valid under v1.10. Uninstall is additive — a package without an `## Uninstalling` section still installs and upgrades correctly; the validator emits Check 14 as a warning, not an error. Packages without `uninstall-skill.md` adapter files have no install behavior change either; the warning surfaces in Check 11 (now extended to scan both install and uninstall coverage). Configuration schemas without `preserve_on_uninstall` fields are valid — every key defaults to `"ask"`, matching pre-v1.10 expectations. The new adapter file convention is normative for new authoring; packages predating v1.10 are not retroactively required to add uninstall coverage to ship.
+**(g) Normative bundle preamble.** The patch on 2026-05-25 added a new
+`### Bundle preamble` subsection under `## Bundle Format`. Earlier v1.10 drafts
+left the prose between bundle frontmatter and the first FILE marker entirely up
+to the bundler. In practice this produced informational headers that AIs read
+and then ignored — improvising install procedures from the raw `=== FILE: ===`
+structure rather than reading INSTALL.md and the runtime adapter. The Codex
+install of `ai-code-review-flow` v1.4.0 exhibited exactly this failure mode.
+The fix makes the preamble normative: it MUST direct the receiving AI to read
+INSTALL.md as the procedure outline, MUST name the runtime adapter as the
+platform-knowledge source, MUST clarify that both are knowledge to reason about
+rather than scripts to execute, and MUST name the "improvising from bundle
+structure" failure mode the preamble exists to prevent. Exact wording is the
+bundler's choice; the outcomes are the spec's. The `## Consuming a bundle`
+checklist was also updated in lockstep so the install-time procedure surfaces
+the preamble-reading step explicitly.
+
+**Backward compatibility:** All v1.9 packages remain valid under v1.10. Uninstall is additive — a package without an `## Uninstalling` section still installs and upgrades correctly; the validator emits Check 14 as a warning, not an error. Packages without `uninstall-skill.md` adapter files have no install behavior change either; the warning surfaces in Check 11 (now extended to scan both install and uninstall coverage). Configuration schemas without `preserve_on_uninstall` fields are valid — every key defaults to `"ask"`, matching pre-v1.10 expectations. The new adapter file convention is normative for new authoring; packages predating v1.10 are not retroactively required to add uninstall coverage to ship. The normative bundle preamble applies to bundlers, not to packages — pre-v1.10.1 bundles in the wild remain readable; the new MUSTs constrain how `a3ip` CLI v1.5.1+ and other bundlers emit new bundles, not what already-issued bundles must contain.
 
 ---
 
@@ -211,6 +227,37 @@ bundle time.
 `bundle.py` always emits `spec_url:` automatically. The `--spec` flag is retained
 for offline/airgapped scenarios only.
 
+### Bundle preamble
+
+The bundle preamble is the prose block that appears between the closing
+frontmatter `---` and the first `=== FILE: ===` marker. It is the first
+content a receiving AI reads, and its job is to anchor that AI to the
+package's install knowledge.
+
+**A bundle MUST include a preamble** between the frontmatter and the
+first FILE marker, and the preamble MUST point the receiving AI at the
+in-bundle install knowledge: `INSTALL.md` and the runtime adapter at
+`adapters/runtime/<platform>/install-skill.md`. Without that pointer, an
+AI lacking prior A3IP familiarity has no signal anchoring it to the
+install contract.
+
+How the preamble is phrased is the bundler's choice. The spec mandates
+the outcome (the AI reaches INSTALL.md and the runtime adapter), not
+specific prose, framing, or enumeration. Bundlers may include additional
+context as fits their project: scope notes about the CLI vs. installer
+role, fallback guidance if knowledge artifacts are missing, project- or
+language-specific commentary.
+
+**Format convention.** Preambles are commonly formatted as a comment
+block (lines beginning with `#`) to visually separate them from the FILE
+markers, but the spec does not require this — a bundler may use any
+plain-text format that is unambiguous to identify as a preamble (i.e.
+not parseable as a `=== FILE: ===` marker).
+
+**Reference implementation:** the `a3ip` CLI's `bundle.py` emits a
+preamble that satisfies the above. Authors implementing a new bundler
+may use its preamble as a starting point and adapt to their project.
+
 ### Generating a bundle
 
 ```
@@ -222,13 +269,20 @@ For each file in the package (recursively, sorted by path):
 
 ### Consuming a bundle
 
-When an AI receives a `.a3ip.bundle` file or its contents:
+When an AI receives a `.a3ip.bundle` file or its contents, a conformant
+install reaches these outcomes:
 
-1. Parse the frontmatter to identify the package name and version.
-2. Split on `=== FILE:` / `=== END FILE ===` delimiters to extract each embedded file.
-3. Hold the files as an in-memory map of `{ path → content }`.
-4. Follow `INSTALL.md` exactly as if the files were on disk.
-5. Write files to disk only when installation explicitly requires it.
+- The package's frontmatter, preamble, and embedded files are parsed.
+- The install knowledge inside the bundle — `INSTALL.md` and the relevant
+  `adapters/runtime/<platform>/install-skill.md` — is read and applied
+  before any side-effecting action.
+- Files are written to disk only as INSTALL.md and the adapter direct.
+
+How the AI sequences the parse, what tools it uses, and how it recovers
+from a malformed delimiter or a missing knowledge artifact are
+implementation. The contract is that the AI installs from the bundle's
+install knowledge, not by inferring layout from the file structure
+alone.
 
 ---
 
@@ -610,6 +664,8 @@ Authors writing adapter content should:
 4. **Avoid code as the section body.** If an adapter section is mostly code with a sentence of context, it's script-shaped. Rule of thumb: prose should outweigh code. [Check 13](#check-13--adapter-knowledge-shape-v19) enforces this coarsely.
 
 5. **Describe variation, not error cases.** "On Windows hosts, paths use backslash" is convention. "If you see a 'path not found' error, try X" is troubleshooting — useful, but should go in a Troubleshooting section, not in the main convention prose.
+
+6. **Make the mechanism articulable.** A reader of the adapter section should be able to summarize the platform mechanism in one sentence after reading it — "files in `~/.codex/skills/` are loaded because `AGENTS.md` references them," "skills in the Personal Skills folder are auto-discovered by Cowork's UI." If the section reads as instructions without surfacing the underlying mechanism, the AI gets a procedure but loses the model — and cannot recover when the procedure fails for reasons outside the documented path. Articulability is the test of whether the adapter is teaching, not just dictating.
 
 ### When script-shape is unavoidable
 
@@ -1299,12 +1355,6 @@ After this step, the host runtime MUST be able to load each skill in
 on the runtime — consult `adapters/runtime/<your-platform>/install-skill.md`
 for platform conventions and a worked example.
 
-**Verification:** the AI installer should be able to articulate, in one
-sentence, the runtime mechanism that will load the skill (e.g., "files in
-`~/.codex/skills/` are loaded because `AGENTS.md` references them" or
-"skills in the Personal Skills folder are auto-discovered by Cowork's UI").
-If it can't, registration is incomplete.
-
 ## 6. Make artifacts available on the host runtime
 *Tier: 2 (required outcome — adapter procedure)*
 
@@ -1441,19 +1491,22 @@ After this step, the host runtime MUST NOT recognize this package's protocol tri
 ### Step UN6 — Remove install_dir contents
 *Tier: 1 (mechanical)*
 
-Apply the per-key decisions resolved in Step UN2:
+After UN6, the following end-state holds:
 
-1. **Partition the resolved decisions.** From Step UN2 the AI holds, for every configuration key, a disposition of either *preserve* or *purge*.
-
-2. **Rewrite `config.json`.** Read the current `{{config.install_dir}}/config.json`. Construct a new version that contains ONLY the keys whose disposition is *preserve*. Keys whose disposition is *purge* are dropped. If the resulting object is empty (every key was purged, or the package had no `config.json` keys), the file is removed entirely. Otherwise, write the trimmed object back to `{{config.install_dir}}/config.json`.
-
-3. **Apply equivalent removal to non-file storages.** For each key whose disposition is *purge* and whose `storage:` field is something other than `config-file` (e.g., `keychain`), remove the value from that storage too. Read `adapters/runtime/<platform>/uninstall-skill.md` for the platform's keychain/credential-removal mechanism if applicable.
-
-4. **Remove every other file in `{{config.install_dir}}`.** Delete all files and subdirectories in the install directory EXCEPT `config.json` (if it survived step 2) and `installed.json`. Subdirectories like `scripts/` are removed in full.
-
-5. **If `config.json` did not survive and no other preserved files exist**, the install directory itself becomes empty except for `installed.json`. That is the normal "clean uninstall" end-state; the directory is removed in Step UN7 alongside `installed.json`.
-
-The `installed.json` file is NOT removed in this step — it survives to Step UN7 so that the uninstall remains observable until the last step lands.
+- `{{config.install_dir}}/config.json` (if present) contains only the
+  configuration keys whose disposition from UN2 is *preserve*. If the set
+  of preserved keys is empty, the file is gone.
+- For any preserved key whose `storage:` field is something other than
+  `config-file` (e.g., `keychain`), the value remains in that storage.
+  For any purged key with non-`config-file` storage, the value has been
+  removed from that storage. The runtime adapter is the authority on the
+  per-storage mechanism.
+- No other files from the package install remain in
+  `{{config.install_dir}}`. Subdirectories the install side created
+  (`scripts/`, generated state, etc.) are gone.
+- `installed.json` is untouched in this step. It survives to UN7 so that
+  the uninstall stays observable until the last step lands; if UN6 fails
+  partway, the next run sees `installed.json` and resumes.
 
 ### Step UN7 — Remove installed.json
 *Tier: 1 (mechanical)*
@@ -1803,7 +1856,7 @@ Packages declare `min_a3ip_spec:` in their manifest to signal which spec feature
 | `1.7` | 2026-05-16 | Two-tier adapter model (`adapters/os/{windows,posix}/` × `adapters/runtime/<name>/`); Check 10 (INSTALL.md spec compliance) |
 | `1.8` | 2026-05-19 | INSTALL.md tool-agnostic language; `installed.json` schema formalized with optional fields; `adapters/runtime/codex/` recognized; cross-product tool-selection table relocated to `TOOL-AUTHORS.md` |
 | `1.9` | 2026-05-21 | Re-alignment to three-tier concept: INSTALL.md Tier 2 steps re-framed as outcomes (Steps 5/6/7); tier markers on step headers; new "Writing Adapter Documents" section formalizes adapters as Tier 3 platform-knowledge; Platform Context Detection as Tier 3 semantic; Validation reconciled to 10 checks plus three new advisory warnings (Checks 11/12/13). All backward-compatible. Uninstall deferred to v1.10. |
-| `1.10` | 2026-05-24 | Uninstall lifecycle: new `## Uninstalling` section in the INSTALL.md template with Tier-marked Steps UN1–UN8; `adapters/runtime/<X>/uninstall-skill.md` as a normative companion to `install-skill.md`; "Writing Adapter Documents" extended with the both-direction coverage rule; existing-install discovery (INSTALL.md Step 1 / Uninstall Step UN1) promoted to Tier 2 outcome — runtime adapters describe HOW; new `preserve_on_uninstall: true \| false \| "ask"` field on configuration schema keys (default `"ask"`) for author-declared per-key uninstall policy; new Check 14 (warning) for INSTALL.md uninstall coverage; Checks 11 and 13 extended to scan both install and uninstall adapter files. All backward-compatible. |
+| `1.10` | 2026-05-24 | Uninstall lifecycle: new `## Uninstalling` section in the INSTALL.md template with Tier-marked Steps UN1–UN8; `adapters/runtime/<X>/uninstall-skill.md` as a normative companion to `install-skill.md`; "Writing Adapter Documents" extended with the both-direction coverage rule; existing-install discovery (INSTALL.md Step 1 / Uninstall Step UN1) promoted to Tier 2 outcome — runtime adapters describe HOW; new `preserve_on_uninstall: true \| false \| "ask"` field on configuration schema keys (default `"ask"`) for author-declared per-key uninstall policy; new Check 14 (warning) for INSTALL.md uninstall coverage; Checks 11 and 13 extended to scan both install and uninstall adapter files. Amended 2026-05-25 with normative `### Bundle preamble` subsection — the prose between bundle frontmatter and first FILE marker MUST direct the receiving AI to INSTALL.md + runtime adapter, with knowledge-not-script framing. All backward-compatible. |
 
 All packages authored under v1.0–v1.9 remain fully valid under v1.10.
 
