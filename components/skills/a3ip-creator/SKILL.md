@@ -1033,8 +1033,14 @@ When the user wants to browse available packages, install from a registry, or ch
 
 ### Browsing a registry
 
-1. **Locate the registry.** Ask the user for the path or URL to `registry.yaml`.
-   Common default: `registry.yaml` in the current workspace directory.
+1. **Locate the registry.** Use the default reference registry unless the user
+   points elsewhere. **Default:** the A3IP reference registry at
+   `https://raw.githubusercontent.com/a3ip-standard/packages/main/registry.yaml`.
+   Any other registry works too — a local `registry.yaml` path, or another
+   registry URL (registries are a distribution layer, like app stores for a
+   package format; the reference registry is just one of possibly many). If the
+   user names a registry or has a local `registry.yaml` in the workspace, prefer
+   that; otherwise fall back to the reference registry.
 
 2. **Read and parse it.** Load the `packages:` list.
 

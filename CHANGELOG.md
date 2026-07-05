@@ -80,6 +80,30 @@ New version entries go at the **top** of this file (newest first).
 
 ---
 
+---
+
+## 3.0.2
+
+*Released: 2026-07-05*
+
+### Summary
+
+The Creator's Phase 6 "browse a registry" step now **defaults to the public reference registry** (`https://raw.githubusercontent.com/a3ip-standard/packages/main/registry.yaml`) instead of a local workspace `registry.yaml`. Any local path or other registry URL still works -- registries are a distribution layer (like app stores for a package format), and the reference registry is simply one of possibly many. This makes "what packages can I install?" work out of the box.
+
+### Upgrade steps
+
+No action required -- non-breaking update. The new default only changes where the Creator looks when the user does not name a registry; pointing it at any local or remote registry behaves exactly as before.
+
+### Breaking changes
+
+None.
+
+### Files changed
+
+- `manifest.yaml` - bumped
+- `CHANGELOG.md` - replaced
+- `components/skills/a3ip-creator/SKILL.md` - replaced
+
 ## 3.0.1
 
 *Released: 2026-06-24*
